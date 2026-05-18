@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+.env.*.local
+backend/.env
+
+# Firebase Service Account (NEVER commit this!)
+backend/config/serviceAccount.json
+**/serviceAccount.json
+
+# Build outputs
+frontend/dist/
+frontend/.vite/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Vercel
+.vercel/
+
+# Firebase
+.firebase/
+firebase-debug.log

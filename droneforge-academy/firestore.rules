@@ -1,0 +1,94 @@
+// firestore.rules
+// Firebase Security Rules for DroneForge Academy
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth.token.admin == true;
+    }
+
+    function validUserUpdate() {
+      let allowed = ['displayName', 'bio', 'photoURL', 'settings', 'updatedAt', 'lastSeen'];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    // ── Users ──────────────────────────────────
+    match /users/{uid} {
+      // Anyone can read public profiles
+      allow read: if true;
+
+      // Only owner can create their profile
+      allow create: if isSignedIn() && isOwner(uid);
+
+      // Owner can update limited fields; system can update xp/badges via backend
+      allow update: if isSignedIn() && (isOwner(uid) || isAdmin());
+
+      // No direct deletion
+      allow delete: if isAdmin();
+    }
+
+    // ── Builds ─────────────────────────────────
+    match /builds/{buildId} {
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ── Progress ───────────────────────────────
+    match /progress/{progressId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow write: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+    }
+
+    // ── Courses ─────────────────────────────── (read-only for users)
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /lessons/{lessonId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // ── Community Posts ────────────────────────
+    match /community_posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.uid == request.auth.uid ||
+        // Allow likes/comment count updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentCount'])
+      );
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+        allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // ── Notifications ──────────────────────────
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow write: if isAdmin();
+    }
+  }
+}
